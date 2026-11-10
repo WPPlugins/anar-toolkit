@@ -54,16 +54,8 @@ final class Plugin {
 	 * @return void
 	 */
 	public function boot() {
-		if ( defined( 'WP_CLI' ) && WP_CLI ) {
-			\WP_CLI::add_command( 'anar recovery-codes', array( \Anar\Login\Auth\RecoveryCommand::class, 'run' ) );
-		}
-		\Anar\Login\Infrastructure\Localization::register();
-		( new \Anar\Login\Integrations\Elementor() )->register();
 		add_action( 'init', array( $this, 'init' ), 0 );
 		add_action( 'init', array( $this, 'runtime' ), 1 );
-		foreach ( array( 'added_user_meta', 'updated_user_meta', 'deleted_user_meta' ) as $hook ) {
-			add_action( $hook, array( self::class, 'digits_source_changed' ), 10, 3 );
-		}
 		add_action( 'updated_option', array( \Anar\Login\Infrastructure\Features::class, 'changed' ), 10, 3 );
 		add_action(
 			'added_option',
@@ -78,7 +70,6 @@ final class Plugin {
 			'deleted_user',
 			static function ( $user_id ) {
 				( new \Anar\Login\Auth\CredentialService() )->remove( $user_id );
-				( new \Anar\Login\Auth\RecoveryCodes() )->remove( $user_id );
 				( new \Anar\Login\Auth\PasskeyRepository() )->remove_user( $user_id );
 			}
 		);
@@ -98,7 +89,6 @@ final class Plugin {
 			9
 		);
 		if ( is_admin() ) {
-			add_action( 'admin_post_anar_invoice_preview', array( \Anar\Login\Admin\InvoicePreview::class, 'render' ) );
 			$settings = new Settings();
 			$providers = ProviderRegistry::shared();
 			( new SettingsPage( $settings, $providers ) )->register();
@@ -114,13 +104,6 @@ final class Plugin {
 		}
 		if ( is_admin() || wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
 			( new \Anar\Login\Balance\Monitor() )->register();
-		}
-	}
-
-	/** Invalidate the cached hint on actual Digits writes; never scan on a page view. */
-	public static function digits_source_changed( $meta_id, $user_id, $key ) {
-		if ( in_array( $key, array( 'digits_phone', 'digits_phone_no' ), true ) && ! get_option( 'anar_digits_migration_complete', false ) ) {
-			delete_option( 'anar_digits_migration_detected' );
 		}
 	}
 
@@ -207,7 +190,6 @@ final class Plugin {
 				( new \Anar\Login\Commerce\Worker( $commerce, $repo, $module, new \Anar\Login\Messaging\NotificationSender( $settings, new \Anar\Login\Messaging\HttpClient() ) ) )->register();
 			}
 		}
-		( new \Anar\Login\Commerce\CappedDiscount() )->register();
 		// Existing personal coupons keep their restrictions even if their creating module is stopped.
 		if ( $flags['games'] || get_option( 'anar_game_budget_coupons' ) ) {
 			( new \Anar\Login\Marketing\GameBudget() )->register(); }

@@ -221,10 +221,9 @@ final class OtpService {
 	 * returned so configuration problems can be fixed from the settings page.
 	 *
 	 * @param string $raw_phone Recipient mobile number.
-	 * @param bool   $single    Test only the displayed SMS provider, without Bale delivery.
 	 * @return array<string,string>|WP_Error
 	 */
-	public function send_test( $raw_phone, $single = false ) {
+	public function send_test( $raw_phone ) {
 		$identity = Identity::normalize( $raw_phone );
 		if ( is_wp_error( $identity ) ) {
 			return $identity;
@@ -234,8 +233,7 @@ final class OtpService {
 		}
 
 		$code = CodeChallenge::generate( absint( $this->settings->get( 'otp_length', 5 ) ) );
-		$method = $single ? 'send_single' : 'send';
-		$sent = $this->providers->$method( $identity['identity'], $code, $this->message( 'sms', $code, absint( $this->settings->get( 'otp_ttl', 120 ) ) ) );
+		$sent = $this->providers->send( $identity['identity'], $code, $this->message( 'sms', $code, absint( $this->settings->get( 'otp_ttl', 120 ) ) ) );
 		if ( is_wp_error( $sent ) ) {
 			$detail = $this->error_detail( $sent );
 
@@ -307,9 +305,7 @@ final class OtpService {
 		return array(
 			'message'      => 'email' === $channel
 				? __( 'If sign-in is available, a code has been sent to your email.', 'anar-toolkit' )
-				: ( in_array( 'bale', $this->settings->get( 'login_methods' ), true )
-					? ( in_array( 'sms', $this->settings->get( 'login_methods' ), true ) ? __( 'If sign-in is available, check Bale or SMS for your mobile code.', 'anar-toolkit' ) : __( 'Verification code sent via Bale.', 'anar-toolkit' ) )
-					: __( 'If sign-in is available, a code has been sent to your mobile.', 'anar-toolkit' ) ),
+				: __( 'If sign-in is available, a code has been sent to your mobile.', 'anar-toolkit' ),
 			'channel'      => $channel,
 			'resend_after' => absint( $this->settings->get( 'resend_delay', 60 ) ),
 			'expires_in'   => absint( $this->settings->get( 'otp_ttl', 120 ) ),

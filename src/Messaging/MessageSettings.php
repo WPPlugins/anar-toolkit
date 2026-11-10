@@ -36,9 +36,6 @@ final class MessageSettings {
 		}
 		$name = self::name( $id, $variant );
 		$value['account'] = self::account( $value['provider'] );
-		if ( 'login_otp' === $id ) {
-			$value['sender_schema'] = 2;
-		}
 		$old = self::stored( $id, $variant );
 		if ( null === $old ) {
 			return add_option( $name, $value, '', false );
@@ -48,8 +45,6 @@ final class MessageSettings {
 		}
 		$updated = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET option_value = %s WHERE option_name = %s AND option_value = %s', $wpdb->options, maybe_serialize( $value ), $name, maybe_serialize( $old ) ) );
 		wp_cache_delete( $name, 'options' );
-		// Some older bindings were autoloaded; the CAS bypasses update_option().
-		wp_cache_delete( 'alloptions', 'options' );
 		return 1 === $updated;
 	}
 
@@ -57,23 +52,10 @@ final class MessageSettings {
 		$legacy = MessageCatalog::legacy( $id );
 		$variant = $variant ?? self::variant( $id );
 		$saved = self::stored( $id, $variant );
-		if ( 'login_otp' === $id && empty( $saved['sender_schema'] ) && ( 'single' !== ( new Settings() )->get( 'mobile_delivery_order' ) || 'bale' === ( $saved['provider'] ?? '' ) ) ) {
-			$saved = self::stored( 'login_sms', $variant );
-			$legacy = MessageCatalog::legacy( 'login_sms' );
-		}
 		$value = array_replace( $legacy, $saved ?? array() );
-		$source_provider = $value['provider'] ?? '';
-		if ( 'login_sms' === $id && ( new Settings() )->get( 'mobile_sms_provider' ) ) {
-			$value['provider'] = ( new Settings() )->get( 'mobile_sms_provider' );
-		}
-		if ( 'login_otp' === $id ) {
-			$settings = new Settings();
-			$value['provider'] = $settings->get( 'login_provider' ) ?: $settings->get( 'sms_provider' );
-		}
-		$value['provider'] = ( new Settings() )->get( 'sms_provider' );
 		$value['_variant'] = $variant;
-		$value['account_changed'] = $source_provider !== $value['provider'] || ( isset( $value['account'] ) && ! hash_equals( $value['account'], self::account( $value['provider'] ) ) );
-		if ( ! empty( $value['inherit'] ) && ! in_array( $id, array( 'login_otp', 'login_sms' ), true ) ) {
+		$value['account_changed'] = isset( $value['account'] ) && ! hash_equals( $value['account'], self::account( $value['provider'] ) );
+		if ( ! empty( $value['inherit'] ) && 'login_otp' !== $id ) {
 			$value = array_replace( $value, self::get( 'login_otp' ) );
 			$value['inherit'] = true;
 		}
@@ -92,7 +74,7 @@ final class MessageSettings {
 		foreach ( array( 'provider', 'mode', 'template', 'params', 'message' ) as $key ) {
 			$value[ $key ] = isset( $raw[ $key ] ) && is_scalar( $raw[ $key ] ) ? sanitize_textarea_field( (string) $raw[ $key ] ) : '';
 		}
-		$value['provider'] = ( new Settings() )->get( 'sms_provider' );
+		$value['provider'] = sanitize_key( $value['provider'] );
 		$value['mode'] = 'text' === $value['mode'] ? 'text' : 'template';
 		$value['inherit'] = ! empty( $raw['inherit'] );
 		return $value;
@@ -126,12 +108,6 @@ final class MessageSettings {
 			return array( __( 'This message is unavailable.', 'anar-toolkit' ) );
 		}
 		$registry = ProviderRegistry::shared()->all();
-		if ( 'login_sms' === $id && ( 'bale' === ( $value['provider'] ?? '' ) || ! empty( $value['inherit'] ) ) ) {
-			$errors[] = __( 'Choose an SMS provider for the mobile sign-in SMS message.', 'anar-toolkit' );
-		}
-		if ( 'bale' === ( $value['provider'] ?? '' ) && 'auth' !== $item['source'] ) {
-			$errors[] = __( 'Bale supports verification codes only.', 'anar-toolkit' );
-		}
 		if ( ! empty( $value['account_changed'] ) ) {
 			$errors[] = __( 'The provider account changed. Review and save this message again.', 'anar-toolkit' );
 		}

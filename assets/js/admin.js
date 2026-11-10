@@ -5,25 +5,11 @@
 	const root = document.querySelector('.anar-admin');
 	if (!root) return;
 
-	const revealActiveTab = () => {
-		const nav = root.querySelector('.anar-admin__nav');
-		const activeButton = nav?.querySelector('[data-tab].is-active');
-		if (nav && activeButton && nav.scrollWidth > nav.clientWidth) {
-			const bounds = nav.getBoundingClientRect();
-			const item = activeButton.getBoundingClientRect();
-			if (item.left < bounds.left) nav.scrollBy({ left: item.left - bounds.left - 8 });
-			else if (item.right > bounds.right) nav.scrollBy({ left: item.right - bounds.right + 8 });
-		}
-	};
-	window.addEventListener('resize', revealActiveTab);
-
 	const showTab = (name) => {
-		const available = [...root.querySelectorAll('.anar-admin__nav [data-tab]')];
-		if (!available.some(button => button.dataset.tab === name)) name = 'features';
 		const connection = root.querySelector('.anar-connection-form');
-		if (connection) connection.hidden = ['messages', 'sending', 'features', 'test'].includes(name);
+		if (connection) connection.hidden = name === 'messages' || name === 'sending';
 		const save = root.querySelector('.anar-admin__save');
-		if (save) save.hidden = name === 'setup' || name === 'sms';
+		if (save) save.hidden = name === 'setup';
 		root.querySelectorAll('[data-tab]').forEach((button) => {
 			button.classList.toggle('is-active', button.dataset.tab === name);
 			button.setAttribute('aria-current', button.dataset.tab === name ? 'true' : 'false');
@@ -33,34 +19,24 @@
 			panel.hidden = !active;
 			panel.classList.toggle('is-active', active);
 		});
-		revealActiveTab();
-		root.dispatchEvent(new CustomEvent('anar:tab-change', { detail: { name } }));
 		try {
 			window.sessionStorage.setItem('anarAdminTab', name);
 		} catch (error) {
 			// Storage can be blocked; the tab simply is not remembered.
 		}
-		return name;
 	};
 	const navigateTab = (name) => {
-		const button = [...root.querySelectorAll('.anar-admin__nav [data-tab]')].find(item => item.dataset.tab === name);
-		if (button && ![...root.querySelectorAll('[data-panel]')].some(panel => panel.dataset.panel === name)) {
-			const address = new URL(window.location.href);
-			address.searchParams.set('section', name);
-			window.location.assign(address.href);
-			return;
-		}
-		name = showTab(name);
+		showTab(name);
 		const address = new URL(window.location.href);
 		address.searchParams.set('section', name);
 		window.history.replaceState(window.history.state, '', address);
 	};
 
-	root.addEventListener('click', event => {
-		const button = event.target.closest('[data-tab]');
-		if (button && root.contains(button)) navigateTab(button.dataset.tab);
+	root.querySelectorAll('[data-tab]').forEach((button) => {
+		button.addEventListener('click', () => {
+			navigateTab(button.dataset.tab);
+		});
 	});
-	document.addEventListener('anar:navigation-updated', () => navigateTab(new URL(window.location.href).searchParams.get('section') || 'features'));
 
 	let savedTab = '';
 	try {
@@ -114,12 +90,9 @@
 	const logoMode = root.querySelector('#anar-form-logo');
 	const logoCustom = root.querySelector('.anar-logo-picker__custom');
 	if (logoMode && logoCustom) {
-		const syncLogo = () => {
+		logoMode.addEventListener('change', () => {
 			logoCustom.hidden = logoMode.value !== 'custom';
-			logoCustom.querySelectorAll('input').forEach(field => { field.disabled = logoCustom.hidden; });
-		};
-		logoMode.addEventListener('change', syncLogo);
-		syncLogo();
+		});
 		const mediaButton = logoCustom.querySelector('[data-anar-media]');
 		if (mediaButton && window.wp && window.wp.media) {
 			let frame;
@@ -136,49 +109,66 @@
 		}
 	}
 
-
-	const methods = root.querySelector('[data-login-methods]');
-	const syncMethods = () => {
-		if (!methods) return;
-		const enabled = [...methods.querySelectorAll('input[type="checkbox"]:checked')].map(input => input.value);
-		const boxes = methods.querySelectorAll('input[type="checkbox"]');
-		boxes[0].setCustomValidity(enabled.length ? '' : methods.querySelector('[data-login-methods-required]').textContent);
-		methods.querySelector('[data-login-methods-required]').hidden = enabled.length > 0;
-		methods.querySelectorAll('[data-login-bale]').forEach(el => { el.hidden = !enabled.includes('bale'); });
-		root.querySelectorAll('[data-login-email]').forEach(el => { el.hidden = !enabled.includes('email'); });
-	};
-	methods?.addEventListener('change', syncMethods);
-	root.querySelectorAll('[name="anar_login_settings[sms_provider]"]').forEach(input => input.addEventListener('change', syncMethods));
-	syncMethods();
-
-	const showCategory = name => {
-		root.querySelectorAll('[data-connection-group]').forEach(el => { el.hidden = el.dataset.connectionGroup !== name; });
-		root.querySelectorAll('[data-connection-category]').forEach(el => el.setAttribute('aria-pressed', String(el.dataset.connectionCategory === name)));
-	};
-	root.querySelectorAll('[data-connection-category]').forEach(button => button.addEventListener('click', () => showCategory(button.dataset.connectionCategory)));
-	if (requestedTab === 'email') { showTab('sms'); showCategory('email'); }
-	root.querySelectorAll('[data-provider-connections] input[type="radio"]').forEach(radio => {
-		radio.addEventListener('change', () => {
-			const group = radio.closest('[data-connection-group]');
-			group.querySelectorAll('.anar-provider').forEach(el => el.classList.toggle('is-selected', el.contains(radio)));
-			group.querySelectorAll('.anar-provider-settings').forEach(el => { el.hidden = el.dataset.provider !== radio.value; });
-		});
-	});
-	root.querySelectorAll('.anar-provider-settings').forEach(panel => {
-		const has = name => {
-			const field = panel.querySelector(`[name$="[${name}]"]`);
-			return !!field && (!!field.value.trim() || field.dataset.savedValue === '1');
+	const tester = root.querySelector('.anar-sms-test');
+	if (tester) {
+		const phone = tester.querySelector('input');
+		const send = tester.querySelector('button');
+		const result = tester.querySelector('.anar-sms-test__result');
+		const report = (text, type) => {
+			result.textContent = text;
+			result.className = 'anar-sms-test__result is-' + type;
+			result.hidden = false;
 		};
-		panel.addEventListener('input', () => {
-			let required = JSON.parse(panel.dataset.requiredFields);
-			if (panel.dataset.provider === 'bale') required = has('api_key') ? ['api_key', 'bot_id'] : ['username', 'password'];
-			let ready = required.every(has);
-			if (panel.dataset.provider === 'bale' && has('api_key')) ready = ready && /^[1-9][0-9]*$/.test(panel.querySelector('[name$="[bot_id]"]').value.trim());
-			if (panel.dataset.provider === 'custom') ready = ready && /^https?:\/\/[^/\s]+/i.test(panel.querySelector('[name$="[url]"]').value.trim());
-			const badge = root.querySelector(`[data-connection-state="${panel.dataset.provider}"]`);
-			if (badge) badge.textContent = ready ? config.connectionCompleteDraft : '⚠ ' + config.connectionIncomplete;
-			badge?.classList.toggle('is-ready', ready);
-			badge?.classList.toggle('needs-setup', !ready);
+
+		send.addEventListener('click', async () => {
+			const label = send.textContent;
+			send.disabled = true;
+			send.textContent = config.sending || label;
+			try {
+				// Send the form's current, unsaved values so the selected provider is the one tested.
+				const body = new URLSearchParams();
+				body.append('phone', phone.value);
+				const form = tester.closest('form');
+				if (form) {
+					new FormData(form).forEach((value, name) => {
+						if (name.indexOf('anar_login_settings[') === 0 && typeof value === 'string') body.append(name, value);
+					});
+				}
+				const response = await fetch(config.restUrl + 'admin/test-sms', {
+					method: 'POST',
+					credentials: 'same-origin',
+					headers: { 'X-WP-Nonce': config.nonce || '' },
+					body
+				});
+				const data = await response.json().catch(() => ({}));
+				report(data.message || config.network, response.ok ? 'success' : 'error');
+			} catch (error) {
+				report(config.network, 'error');
+			} finally {
+				send.disabled = false;
+				send.textContent = label;
+			}
+		});
+
+		// Enter in the test field must not submit the settings form.
+		phone.addEventListener('keydown', (event) => {
+			if (event.key === 'Enter') {
+				event.preventDefault();
+				send.click();
+			}
+		});
+	}
+
+	const verificationMessages = root.querySelector('[data-verification-messages]');
+	const saveProviderFirst = verificationMessages?.querySelector('[data-save-provider-first]');
+	root.querySelectorAll('.anar-provider input[type="radio"]').forEach((radio) => {
+		radio.addEventListener('change', () => {
+			root.querySelectorAll('.anar-provider').forEach((item) => item.classList.remove('is-selected'));
+			radio.closest('.anar-provider').classList.add('is-selected');
+			root.querySelectorAll('.anar-provider-settings').forEach((panel) => {
+				panel.hidden = panel.dataset.provider !== radio.value;
+			});
+			if (saveProviderFirst) saveProviderFirst.hidden = radio.value === verificationMessages.dataset.savedProvider;
 		});
 	});
 	root.querySelectorAll('[data-copy]').forEach((button) => {

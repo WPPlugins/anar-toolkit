@@ -8,7 +8,7 @@
 	const feedback = dialog.querySelector('[data-message-feedback]');
 	const providerDraft = dialog.querySelector('[data-message-provider-draft]');
 	const closeButton = dialog.querySelector('[data-message-close]');
-	const unsaved = document.querySelector('[data-message-unsaved]');
+	const unsaved = dialog.querySelector('[data-message-unsaved]');
 	const reloadButton = dialog.querySelector('[data-message-reload]');
 	let selection = null;
 	let pendingLeave = null;
@@ -21,8 +21,8 @@
 
 	function snapshot(form) {
 		return JSON.stringify(Array.from(form.elements).filter(function (field) {
-			return !field.disabled && !field.name.startsWith('anar_connection_view_') && field.name && !['_wpnonce', '_wp_http_referer', 'revision', 'test_phone', 'operation', 'submit'].includes(field.name) && !['submit', 'button'].includes(field.type) && (!['checkbox', 'radio'].includes(field.type) || field.checked);
-		}).map(function (field) { return [field.name, field.value]; }).sort(function (a, b) { return JSON.stringify(a).localeCompare(JSON.stringify(b)); }));
+			return field.name && !['_wpnonce', '_wp_http_referer', 'revision', 'test_phone', 'operation', 'submit'].includes(field.name) && !['submit', 'button'].includes(field.type) && (!['checkbox', 'radio'].includes(field.type) || field.checked);
+		}).map(function (field) { return [field.name, field.value]; }));
 	}
 	function report(text, success, target) {
 		const element = target || feedback;
@@ -98,11 +98,9 @@
 			body.innerHTML = result.data.html;
 			const form = body.querySelector('[data-message-editor]');
 			editor = initialize(form);
-			const loginProvider = document.querySelector('#anar-login-provider');
-			const defaultProvider = document.querySelector('#anar-default-provider');
-			const savedDefault = document.querySelector('[data-verification-messages]')?.dataset.savedProvider;
-			providerDraft.hidden = !form.hasAttribute('data-auth-message') || !loginProvider ||
-				(loginProvider.value === loginProvider.dataset.savedProvider && (!defaultProvider || defaultProvider.value === savedDefault));
+			const savedProvider = document.querySelector('[data-verification-messages]')?.dataset.savedProvider;
+			const selectedProvider = document.querySelector('[data-panel="sms"] .anar-provider input:checked')?.value;
+			providerDraft.hidden = !form.hasAttribute('data-auth-message') || !selectedProvider || selectedProvider === savedProvider;
 			document.dispatchEvent(new CustomEvent('anar:content-ready', { detail: { root: body } }));
 		} catch (error) {
 			if (error.name !== 'AbortError') { report(error.message || config.network, false); reloadButton.hidden = false; }
@@ -174,10 +172,9 @@
 			form.querySelector('[data-current-provider]').textContent = effective?.title || effectiveKey || provider.options[0].textContent;
 			const inheritedEditor = form.querySelector('[data-inherited-editor]');
 			if (inheritedEditor) inheritedEditor.hidden = !inherited;
-			providerToggle.hidden = true;
+			providerToggle.hidden = inherited;
 			if (inherited) showProviderPicker(false);
 			form.querySelector('[data-provider-missing]').hidden = !!effectiveKey;
-			form.querySelector('[data-provider-connection-warning]').hidden = !effectiveKey || !!effective?.ready;
 			const auth = form.hasAttribute('data-auth-message');
 			const usesDefault = effectiveKey === form.dataset.defaultProvider;
 			form.querySelector('[data-provider-default]').hidden = !auth || inherited || !effectiveKey || !usesDefault;
@@ -286,7 +283,6 @@
 		return { dirty: function () { return snapshot(form) !== baseline; } };
 	}
 	function updateSummary(data) {
-		if (data.id === 'login_sms' && data.provider_key) document.dispatchEvent(new CustomEvent('anar:login-sms-saved', {detail: {provider: data.provider_key}}));
 		document.querySelectorAll('[data-message-summary], [data-message-row]').forEach(function (element) {
 			if ((element.dataset.messageSummary || element.dataset.messageRow) !== data.id) return;
 			const status = element.querySelector('[data-message-status]');
@@ -297,8 +293,6 @@
 		});
 	}
 	document.addEventListener('click', function (event) {
-		const messageButton = event.target.closest('button[data-message-id]');
-		if (messageButton) { event.preventDefault(); open(messageButton.dataset.messageId, null, {replace:dialog.open}); return; }
 		const link = event.target.closest('a[href]');
 		if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 		const address = new URL(link.href);
@@ -339,16 +333,6 @@
 		if (id) open(id, address.searchParams.get('variant'), { history: false, skipConfirm: true });
 		else if (dialog.open) close();
 	});
-
-	document.addEventListener('anar:navigate', function (event) {
-        const action = event.detail.proceed;
-        if (busy || editor && editor.dirty() || [...parents].some(entry => snapshot(entry[0]) !== entry[1])) {
-            event.preventDefault();
-            if (busy || unsaved.open) return;
-            pendingLeave = function () { parents.clear(); editor = null; action(); };
-            unsaved.showModal(); unsaved.querySelector('[data-message-keep]').focus();
-        }
-    });
 	window.addEventListener('beforeunload', function (event) {
 		if (busy || editor && editor.dirty() || Array.from(parents).some(function (entry) { return snapshot(entry[0]) !== entry[1]; })) { event.preventDefault(); event.returnValue = ''; }
 	});
@@ -368,12 +352,9 @@
 		filter.addEventListener('submit', function (event) { event.preventDefault(); filterRows(); });
 		filter.addEventListener('input', filterRows); filter.addEventListener('change', filterRows); filterRows();
 	}
-	document.querySelectorAll('.anar-connection-form, [data-scoped-settings], [data-message-shared], .anar-commerce form[action$="options.php"]').forEach(function (form) {
+	document.querySelectorAll('.anar-connection-form, [data-message-shared], .anar-commerce form[action$="options.php"], .anar-features form').forEach(function (form) {
 		parents.set(form, snapshot(form));
-		form.addEventListener('submit', function () { if (!form.matches('[data-message-shared], [data-scoped-settings]')) parents.delete(form); });
-	});
-	['anar:scoped-saved', 'anar:feature-saved'].forEach(function (name) {
-		document.addEventListener(name, function (event) { if (parents.has(event.detail.form)) parents.set(event.detail.form, snapshot(event.detail.form)); });
+		form.addEventListener('submit', function () { if (!form.matches('[data-message-shared]')) parents.delete(form); });
 	});
 	const shared = document.querySelector('[data-message-shared]');
 	if (shared) shared.addEventListener('submit', async function (event) {

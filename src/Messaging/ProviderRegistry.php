@@ -82,7 +82,7 @@ final class ProviderRegistry {
 
 		$http            = $this->http ? $this->http : new HttpClient();
 		$this->providers = array();
-		foreach ( array( Kavenegar::class, Melipayamak::class, IPPanel::class, Panelchi::class, MaxSms::class, FarazSms::class, SmsIr::class, \Anar\Login\Messaging\Providers\Bale::class, CustomHttp::class ) as $class ) {
+		foreach ( array( Kavenegar::class, Melipayamak::class, IPPanel::class, Panelchi::class, MaxSms::class, FarazSms::class, SmsIr::class, CustomHttp::class ) as $class ) {
 			$provider                            = new $class( $this->settings, $http );
 			$this->providers[ $provider->key() ] = $provider;
 		}
@@ -107,22 +107,8 @@ final class ProviderRegistry {
 	 * @return true|WP_Error
 	 */
 	public function send( $recipient, $code, $message, $context = 'login_otp' ) {
-		if ( LoginDelivery::applies( $this->settings, $context ) ) {
-			return ( new LoginDelivery( $this->settings, $this ) )->send( $recipient, $code, $message, $context );
-		}
-		return $this->send_single( $recipient, $code, $message, $context );
-	}
-
-	public function send_single( $recipient, $code, $message, $context = 'login_otp', $binding_id = '' ) {
-		if ( 'login_sms' === $context ) {
-			$binding_id = 'login_sms';
-		}
 		$key       = sanitize_key( $this->settings->get( 'sms_provider', '' ) );
 		$binding = MessageSettings::stored( $context );
-		if ( 'auth' === ( MessageCatalog::all()[ $context ]['source'] ?? '' ) ) {
-			$binding = MessageSettings::get( $context ); }
-		if ( $binding_id ) {
-			$binding = MessageSettings::get( $binding_id ); }
 		if ( null === $binding && 'login_otp' !== $context && isset( MessageCatalog::all()[ $context ] ) && 'auth' === MessageCatalog::all()[ $context ]['source'] ) {
 			$binding = MessageSettings::stored( 'login_otp' );
 		}
@@ -132,9 +118,9 @@ final class ProviderRegistry {
 				return new WP_Error( 'anar_invalid_recipient', __( 'A valid mobile number is required.', 'anar-toolkit' ) );
 			}
 			$recipient = $identity['identity'];
-			$value = MessageSettings::get( $binding_id ?: $context );
+			$value = MessageSettings::get( $context );
 			$key = $value['provider'];
-			$errors = MessageSettings::errors( $binding_id ?: $context, $value );
+			$errors = MessageSettings::errors( $context, $value );
 			if ( $errors ) {
 				return new WP_Error( 'anar_message_incomplete', implode( ' ', $errors ) );
 			}

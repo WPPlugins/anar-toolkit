@@ -25,34 +25,25 @@ final class LoginSetup {
 			</ol>
 			<div class="anar-card" data-setup-step="0">
 				<h3 tabindex="-1"><?php esc_html_e( 'Choose how customers sign in', 'anar-toolkit' ); ?></h3>
-				<p><?php esc_html_e( 'Enable SMS, Email or Bale in General. Customers enter a mobile number for SMS or Bale, or an email address for Email. Enable both mobile senders to send the same code through SMS and Bale.', 'anar-toolkit' ); ?></p>
+				<p><?php esc_html_e( 'Choose mobile number, email or both. Existing customers keep their accounts.', 'anar-toolkit' ); ?></p>
 				<button type="button" class="button" data-setup-target="general"><?php esc_html_e( 'Open sign-in settings', 'anar-toolkit' ); ?></button>
 			</div>
 			<div class="anar-card" data-setup-step="1" hidden>
 				<h3 tabindex="-1"><?php esc_html_e( 'Connect the selected service', 'anar-toolkit' ); ?></h3>
 				<?php if ( 'email' !== $value['identity_mode'] ) : ?>
 					<button type="button" class="button" data-setup-target="sms"><?php esc_html_e( 'Open SMS connection', 'anar-toolkit' ); ?></button>
-					<?php
-					if ( in_array( 'sms', $value['login_methods'], true ) ) {
-						MessageCenter::summary( 'login_otp', 'login' ); }
-					?>
-					<p><?php esc_html_e( 'Choose and configure one SMS provider in Service providers, then save the sign-in code message. All SMS features use this provider. Bale needs only its OTP connection; email uses the site mail service.', 'anar-toolkit' ); ?></p>
+					<?php MessageCenter::summary( 'login_otp', 'login' ); ?>
 				<?php endif; ?>
 				<?php if ( 'phone' !== $value['identity_mode'] ) : ?>
-					<button type="button" class="button" data-setup-target="general"><?php esc_html_e( 'Open email settings', 'anar-toolkit' ); ?></button>
+					<button type="button" class="button" data-setup-target="email"><?php esc_html_e( 'Open email settings', 'anar-toolkit' ); ?></button>
 				<?php endif; ?>
 				<?php Help::button( __( 'Configure the service and save it. SMS templates open in the same message editor used throughout Anar; there is no separate template in this guide.', 'anar-toolkit' ) ); ?>
 			</div>
 			<div class="anar-card" data-setup-step="2" hidden>
 				<h3 tabindex="-1"><?php esc_html_e( 'Check delivery and complete a test sign-in', 'anar-toolkit' ); ?></h3>
-				<p><?php esc_html_e( 'Check the saved configuration in Test and troubleshoot, then send a test to your own phone. Finish by signing in from a private browser window.', 'anar-toolkit' ); ?></p>
-				<button type="button" class="button button-primary" data-setup-target="test"><?php esc_html_e( 'Open test center', 'anar-toolkit' ); ?></button>
+				<p><?php esc_html_e( 'Send a test from the message editor, then sign in from a private browser window using your own contact. Test sending uses your provider credit.', 'anar-toolkit' ); ?></p>
 				<?php if ( 'email' !== $value['identity_mode'] ) : ?>
-					<?php
-					if ( in_array( 'sms', $value['login_methods'], true ) ) {
-						MessageCenter::summary( 'login_otp', 'login', true ); }
-					?>
-					<p><?php esc_html_e( 'After saving, test sign-in with your own mobile number. If SMS and Bale are both enabled, check that both receive the same code and that it works only once. Test an email address separately if Email is enabled.', 'anar-toolkit' ); ?></p>
+					<?php MessageCenter::summary( 'login_otp', 'login', true ); ?>
 				<?php endif; ?>
 				<p><?php esc_html_e( 'A provider acceptance response does not confirm receipt on the phone. Check the received code before enabling the form for customers.', 'anar-toolkit' ); ?></p>
 			</div>
@@ -95,7 +86,7 @@ final class LoginSetup {
 		wp_enqueue_style( 'anar-login-preview', ANAR_LOGIN_URL . 'assets/css/frontend.css', array(), ANAR_LOGIN_VERSION );
 		wp_add_inline_style( 'anar-login-preview', 'body{margin:0;padding:12px;background:#f8f6f7}main{pointer-events:none}' );
 		?>
-		<!doctype html><html class="anar-login-preview-document" lang="<?php echo esc_attr( get_bloginfo( 'language' ) ); ?>" dir="<?php echo is_rtl() ? 'rtl' : 'ltr'; ?>"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title><?php esc_html_e( 'Sign-in form preview', 'anar-toolkit' ); ?></title><?php wp_print_styles( array( 'anar-login-preview', 'anar-password-reset' ) ); ?></head><body><main inert><?php echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Shared renderer escapes every value. ?></main></body></html>
+		<!doctype html><html lang="<?php echo esc_attr( get_bloginfo( 'language' ) ); ?>" dir="<?php echo is_rtl() ? 'rtl' : 'ltr'; ?>"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title><?php esc_html_e( 'Sign-in form preview', 'anar-toolkit' ); ?></title><?php wp_print_styles( array( 'anar-login-preview', 'anar-password-reset' ) ); ?></head><body><main inert><?php echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Shared renderer escapes every value. ?></main></body></html>
 		<?php
 		exit;
 	}
