@@ -110,6 +110,26 @@ final class Features {
 		return $tabs;
 	}
 
+	/** Settings shared by active capabilities remain available until their last user is disabled. */
+	public static function settings_tabs() {
+		$flags = self::all();
+		$tabs = array( 'features', 'messages', 'test', 'sms' );
+		if ( $flags['login'] || $flags['reset'] || $flags['two_factor'] ) {
+			$tabs[] = 'general';
+			$tabs[] = 'security';
+		}
+		if ( $flags['login'] ) {
+			$tabs = array_merge( $tabs, array( 'google', 'setup', 'install' ) );
+			if ( class_exists( 'WooCommerce' ) ) {
+				$tabs[] = 'woocommerce';
+			}
+		}
+		if ( self::queue_needed() && class_exists( 'WooCommerce' ) ) {
+			$tabs[] = 'sending';
+		}
+		return $tabs;
+	}
+
 	public static function current_tab() {
 		if ( self::current_module() ) {
 			return 'campaigns'; }
@@ -165,7 +185,10 @@ final class Features {
 			if ( ! $flags[ $module ] || ( isset( $marketing['rules'][ $event ]['enabled'] ) && ! $marketing['rules'][ $event ]['enabled'] ) ) {
 				$events[] = 'mkt_' . $event; }
 		}
-		foreach ( $events as $event ) {
-			$wpdb->query( $wpdb->prepare( "UPDATE %i SET status = 'cancelled', error_code = 'module_disabled' WHERE status = 'pending' AND event = %s", $wpdb->prefix . 'anar_toolkit_messages', $event ) ); }
+		if ( $events ) {
+			$placeholders = implode( ', ', array_fill( 0, count( $events ), '%s' ) );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Only generated %s placeholders; all event values are prepared.
+			$wpdb->query( $wpdb->prepare( "UPDATE %i SET status = 'cancelled', error_code = 'module_disabled' WHERE status = 'pending' AND event IN ($placeholders)", array_merge( array( $wpdb->prefix . 'anar_toolkit_messages' ), $events ) ) );
+		}
 	}
 }

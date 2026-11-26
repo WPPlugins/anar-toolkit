@@ -40,7 +40,7 @@ final class Admin {
 		wp_safe_redirect( wp_get_referer() ?: admin_url( 'admin.php?page=anar-toolkit-bulk' ) );
 		exit; }
 
-	private function field( $key, $label, $value, $type = 'text', $help = '', $popup_only = false ) {
+	private function field( $key, $label, $value, $type = 'text', $help = '' ) {
 		if ( ! $help && false !== strpos( $key, '][params' ) ) {
 			$help = __( 'Use the exact variable names from the approved provider template, one name={placeholder} per line. Include {unsubscribe_url}; surveys also require {action_url}.', 'anar-toolkit' ); }
 		if ( ! $help && false !== strpos( $key, '][template' ) ) {
@@ -56,10 +56,7 @@ final class Admin {
 else :
 	?>
 			<input id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( Settings::OPTION . '[' . $key . ']' ); ?>" type="<?php echo esc_attr( $type ); ?>" value="<?php echo esc_attr( $value ); ?>" <?php echo 'number' === $type ? 'step="any"' : ''; ?>><?php endif; ?>
-			<?php
-			if ( $help && ! $popup_only ) :
-				?>
-	<br><small class="description"><?php echo esc_html( $help ); ?></small><?php endif; ?></div>
+		</div>
 		<?php
 	}
 
@@ -82,18 +79,11 @@ else :
 		if ( ! $module ) {
 			return; }
 		?>
-		<section class="anar-suite-panel" id="campaigns"><div class="anar-suite-toolbar"><h2><?php echo esc_html( Settings::modules()[ $module ] ); ?></h2><a href="<?php echo esc_url( admin_url( 'admin.php?page=anar-features-other' ) ); ?>"><?php esc_html_e( 'Other features', 'anar-toolkit' ); ?></a></div>
-		<?php
-		if ( 'games' === $module ) {
-			\Anar\Login\Admin\Help::button( \Anar\Login\Admin\Help::text( $module ) );
-		} else {
-			\Anar\Login\Admin\Help::section( $module );
-		}
-		?>
+		<section class="anar-suite-panel" id="campaigns"><div class="anar-suite-toolbar"><h2><?php echo esc_html( Settings::modules()[ $module ] ); ?><?php \Anar\Login\Admin\Help::button( \Anar\Login\Admin\Help::text( $module ) ); ?></h2><a href="<?php echo esc_url( admin_url( 'admin.php?page=anar-features-other' ) ); ?>"><?php esc_html_e( 'Other features', 'anar-toolkit' ); ?></a></div>
 		<details class="anar-commerce-card" open><summary><strong><?php esc_html_e( 'Settings', 'anar-toolkit' ); ?></strong></summary><form method="post" action="options.php"><?php settings_fields( 'anar_marketing' ); ?><input type="hidden" name="<?php echo esc_attr( Settings::OPTION ); ?>[_partial]" value="1">
 		<?php
 		$this->module_settings( $module, $config );
-		submit_button( __( 'Save campaign settings', 'anar-toolkit' ) );
+		submit_button( __( 'Save feature settings', 'anar-toolkit' ) );
 		?>
 		</form></details>
 		<?php
@@ -101,7 +91,8 @@ else :
 			$this->bulk_forms(); }
 		if ( ! in_array( $module, array( 'stock', 'invoice' ), true ) ) {
 			$this->history_form(); }
-		$this->module_report( $module, $config );
+		if ( 'invoice' !== $module ) {
+			$this->module_report( $module, $config ); }
 		?>
 		</section>
 		<?php
@@ -113,12 +104,12 @@ else :
 		<?php GameAdmin::render( $config ); ?>
 		<h3><?php esc_html_e( 'Winning chance and single-reward fallback', 'anar-toolkit' ); ?></h3><div class="anar-game-settings-grid">
 		<?php
-		$this->field( 'games_limit', __( 'Daily attempts in shared mode', 'anar-toolkit' ), $config['games_limit'], 'number', __( 'Used only in shared mode. Separate limits are set inside each game below.', 'anar-toolkit' ), true );
+		$this->field( 'games_limit', __( 'Daily attempts in shared mode', 'anar-toolkit' ), $config['games_limit'], 'number', __( 'Used only in shared mode. Separate limits are set inside each game below.', 'anar-toolkit' ) );
 		?>
 		<div class="anar-commerce-field"><label for="anar-game-reward-type"><strong><?php esc_html_e( 'Game reward type', 'anar-toolkit' ); ?></strong></label><?php \Anar\Login\Admin\Help::button( __( 'These two fields apply only when no named prize rows are configured. A win issues one personal, single-use coupon valid for 48 hours.', 'anar-toolkit' ) ); ?><br><select id="anar-game-reward-type" name="<?php echo esc_attr( Settings::OPTION ); ?>[game_reward_type]"><option value="percent" <?php selected( $config['game_reward_type'], 'percent' ); ?>><?php esc_html_e( 'Percentage', 'anar-toolkit' ); ?></option><option value="fixed_cart" <?php selected( $config['game_reward_type'], 'fixed_cart' ); ?>><?php esc_html_e( 'Fixed cart amount', 'anar-toolkit' ); ?></option></select></div>
 		<?php
-		$this->field( 'game_reward_amount', __( 'Coupon discount amount', 'anar-toolkit' ), $config['game_reward_amount'], 'number', __( 'For a percentage coupon, enter a value from 0 to 100. For a fixed coupon, enter the amount in the store currency. The gift name below changes its displayed label, not its discount value.', 'anar-toolkit' ), true );
-		$this->field( 'game_reward_chance', __( 'Chance of receiving a coupon (%)', 'anar-toolkit' ), $config['game_reward_chance'], 'number', __( 'Enter 0 to 100. For example, 25 means a 25% chance on each eligible attempt. A correct quiz answer or completing the memory game is also required in those games. Purchase milestones always award the configured coupon.', 'anar-toolkit' ), true );
+		$this->field( 'game_reward_amount', __( 'Coupon discount amount', 'anar-toolkit' ), $config['game_reward_amount'], 'number', __( 'For a percentage coupon, enter a value from 0 to 100. For a fixed coupon, enter the amount in the store currency. The gift name below changes its displayed label, not its discount value.', 'anar-toolkit' ) );
+		$this->field( 'game_reward_chance', __( 'Chance of receiving a coupon (%)', 'anar-toolkit' ), $config['game_reward_chance'], 'number', __( 'Enter 0 to 100. For example, 25 means a 25% chance on each eligible attempt. A correct quiz answer or completing the memory game is also required in those games. Purchase milestones always award the configured coupon.', 'anar-toolkit' ) );
 		?>
 		</div>
 		<h3><?php esc_html_e( 'Game display and text', 'anar-toolkit' ); ?><?php \Anar\Login\Admin\Help::button( __( 'Open a game to edit its text and copy its shortcode into a page or shortcode block. These panels do not switch games on or off. Leave a text field empty to use its default wording.', 'anar-toolkit' ) ); ?></h3>
@@ -143,15 +134,15 @@ else :
 				$fields['wheel_miss_label'] = array( __( 'Wheel label for no reward', 'anar-toolkit' ), __( 'The label on wheel segments without a prize. The chance of winning is configured above.', 'anar-toolkit' ) );
 			}
 			foreach ( $fields as $key => $field ) {
-				$this->field( 'game_texts][' . $type . '][' . $key, $field[0], $texts[ $key ], in_array( $key, array( 'intro', 'win_message', 'lose_message' ), true ) ? 'textarea' : 'text', $field[1], true );
+				$this->field( 'game_texts][' . $type . '][' . $key, $field[0], $texts[ $key ], in_array( $key, array( 'intro', 'win_message', 'lose_message' ), true ) ? 'textarea' : 'text', $field[1] );
 			}
 			if ( 'quiz' === $type ) {
-				$this->field( 'game_quiz_question', __( 'Quiz question', 'anar-toolkit' ), $config['game_quiz_question'], 'text', __( 'Only the store quiz uses this question. It has no effect on the wheel or other games.', 'anar-toolkit' ), true );
-				$this->field( 'game_quiz_options', __( 'Answer choices, one per line', 'anar-toolkit' ), $config['game_quiz_options'], 'textarea', __( 'Enter 2 to 8 answers, one per line. Empty lines are ignored. These are quiz answers, not wheel prizes.', 'anar-toolkit' ), true );
-				$this->field( 'game_quiz_answer', __( 'Correct answer number', 'anar-toolkit' ), $config['game_quiz_answer'], 'number', __( 'Count the non-empty answers from top to bottom, starting at 1. For example, enter 2 if the second answer is correct.', 'anar-toolkit' ), true );
+				$this->field( 'game_quiz_question', __( 'Quiz question', 'anar-toolkit' ), $config['game_quiz_question'], 'text', __( 'Only the store quiz uses this question. It has no effect on the wheel or other games.', 'anar-toolkit' ) );
+				$this->field( 'game_quiz_options', __( 'Answer choices, one per line', 'anar-toolkit' ), $config['game_quiz_options'], 'textarea', __( 'Enter 2 to 8 answers, one per line. Empty lines are ignored. These are quiz answers, not wheel prizes.', 'anar-toolkit' ) );
+				$this->field( 'game_quiz_answer', __( 'Correct answer number', 'anar-toolkit' ), $config['game_quiz_answer'], 'number', __( 'Count the non-empty answers from top to bottom, starting at 1. For example, enter 2 if the second answer is correct.', 'anar-toolkit' ) );
 			}
 			if ( 'milestone' === $type ) {
-				$this->field( 'game_milestone_orders', __( 'Paid orders per purchase milestone', 'anar-toolkit' ), $config['game_milestone_orders'], 'number', __( 'For example, 3 awards a gift after the third paid order, then after the sixth, and so on. Each milestone can be claimed once.', 'anar-toolkit' ), true );
+				$this->field( 'game_milestone_orders', __( 'Paid orders per purchase milestone', 'anar-toolkit' ), $config['game_milestone_orders'], 'number', __( 'For example, 3 awards a gift after the third paid order, then after the sixth, and so on. Each milestone can be claimed once.', 'anar-toolkit' ) );
 			}
 			?>
 			</div></details>
@@ -161,7 +152,7 @@ else :
 
 	private function module_settings( $module, $config ) {
 		$fields = array();
-		if ( ! in_array( $module, array( 'games', 'referral', 'traffic' ), true ) ) {
+		if ( ! in_array( $module, array( 'games', 'referral', 'traffic', 'invoice' ), true ) ) {
 			?>
 			<p><?php esc_html_e( 'Limits and customer filters use the shared campaign settings.', 'anar-toolkit' ); ?> <a href="<?php echo esc_url( \Anar\Login\Admin\MessageCenter::url( 'shared' ) ); ?>"><?php esc_html_e( 'Shared campaign settings', 'anar-toolkit' ); ?></a></p>
 			<?php
@@ -190,12 +181,13 @@ else :
 		}
 		if ( 'birthday' === $module ) {
 			?>
-		<p><code>[anar_customer_preferences]</code></p><p><?php esc_html_e( 'Jalali birthdays use the PHP Intl extension. When Intl is unavailable, the birthday form offers the Gregorian calendar.', 'anar-toolkit' ); ?></p>
+		<p><code>[anar_customer_preferences]</code></p><?php \Anar\Login\Admin\Help::button( __( 'Jalali birthdays use the PHP Intl extension. When Intl is unavailable, the birthday form offers the Gregorian calendar.', 'anar-toolkit' ) ); ?>
 			<?php
 		}
 		foreach ( $fields as $key => $label ) {
 			$this->field( $key, $label, $config[ $key ], 'number' ); }
 		if ( 'invoice' === $module ) {
+			\Anar\Login\Admin\InvoicePreview::controls( $config );
 			foreach ( array( 'store_name' => __( 'Store display name', 'anar-toolkit' ), 'store_address' => __( 'Store address', 'anar-toolkit' ), 'store_tax_id' => __( 'Store tax / registration ID', 'anar-toolkit' ), 'invoice_prefix' => __( 'Invoice number prefix', 'anar-toolkit' ) ) as $key => $label ) {
 				$this->field( $key, $label, $config[ $key ] ); }
 		}
@@ -229,7 +221,7 @@ else :
 
 	private function history_form() {
 		?>
-		<details class="anar-commerce-card"><summary><strong><?php esc_html_e( 'Sync your customer history', 'anar-toolkit' ); ?></strong></summary><p><?php esc_html_e( 'Import paid WooCommerce orders in bounded background batches. This records sales facts and customers locally; enabled campaign rules apply during subsequent worker runs.', 'anar-toolkit' ); ?></p><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"><?php wp_nonce_field( 'anar_marketing_import' ); ?><input type="hidden" name="action" value="anar_marketing_import"><button class="button"><?php esc_html_e( 'Start / resume history import', 'anar-toolkit' ); ?></button></form></details>
+		<details class="anar-commerce-card"><summary><strong><?php esc_html_e( 'Sync your customer history', 'anar-toolkit' ); ?></strong></summary><?php \Anar\Login\Admin\Help::button( __( 'Import paid WooCommerce orders in bounded background batches. This records sales facts and customers locally; enabled campaign rules apply during subsequent worker runs.', 'anar-toolkit' ) ); ?><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"><?php wp_nonce_field( 'anar_marketing_import' ); ?><input type="hidden" name="action" value="anar_marketing_import"><button class="button"><?php esc_html_e( 'Start / resume history import', 'anar-toolkit' ); ?></button></form></details>
 		<?php
 	}
 
@@ -237,7 +229,7 @@ else :
 		$preview = get_transient( 'anar_bulk_preview_' . get_current_user_id() );
 		\Anar\Login\Admin\MessageCenter::summary( 'mkt_bulk', 'bulk' );
 		?>
-		<details class="anar-commerce-card"><summary><strong><?php esc_html_e( 'Import campaign contacts', 'anar-toolkit' ); ?></strong></summary><p><?php esc_html_e( 'Paste up to 1,000 mobile numbers, one per line. CSV rows are supported with the phone in the first column. Duplicates are merged and stopped numbers remain stopped. Importing never launches a bulk campaign; preview and confirm it separately.', 'anar-toolkit' ); ?></p><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"><?php wp_nonce_field( 'anar_marketing_contacts' ); ?><input type="hidden" name="action" value="anar_marketing_contacts"><textarea class="large-text" name="contacts" rows="5" maxlength="100000" required dir="ltr" aria-label="<?php esc_attr_e( 'Contact mobile numbers', 'anar-toolkit' ); ?>"></textarea><p><button class="button"><?php esc_html_e( 'Import contacts without sending', 'anar-toolkit' ); ?></button></p></form></details>
+		<details class="anar-commerce-card"><summary><strong><?php esc_html_e( 'Import campaign contacts', 'anar-toolkit' ); ?></strong></summary><?php \Anar\Login\Admin\Help::button( __( 'Paste up to 1,000 mobile numbers, one per line. CSV rows are supported with the phone in the first column. Duplicates are merged and stopped numbers remain stopped. Importing never launches a bulk campaign; preview and confirm it separately.', 'anar-toolkit' ) ); ?><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"><?php wp_nonce_field( 'anar_marketing_contacts' ); ?><input type="hidden" name="action" value="anar_marketing_contacts"><textarea class="large-text" name="contacts" rows="5" maxlength="100000" required dir="ltr" aria-label="<?php esc_attr_e( 'Contact mobile numbers', 'anar-toolkit' ); ?>"></textarea><p><button class="button"><?php esc_html_e( 'Import contacts without sending', 'anar-toolkit' ); ?></button></p></form></details>
 		<div class="anar-commerce-card"><h2><?php esc_html_e( 'Prepare a bulk campaign', 'anar-toolkit' ); ?></h2><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"><?php wp_nonce_field( 'anar_bulk_preview' ); ?><input type="hidden" name="action" value="anar_bulk_preview"><p><label><?php esc_html_e( 'Campaign title', 'anar-toolkit' ); ?><input name="title" required maxlength="100"></label></p><p><label><?php esc_html_e( 'Audience segment', 'anar-toolkit' ); ?><select name="segment">
 		<?php
 		foreach ( array( 'all' => __( 'All eligible contacts', 'anar-toolkit' ), 'vip' => __( 'VIP customers', 'anar-toolkit' ), 'inactive' => __( 'No purchase in 30 days', 'anar-toolkit' ), 'new' => __( 'New customers', 'anar-toolkit' ) ) as $key => $label ) :
